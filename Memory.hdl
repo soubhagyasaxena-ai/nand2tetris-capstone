@@ -1,0 +1,45 @@
+// Memory.hdl - Hack data memory
+//
+// Address map:
+//   0x0000 - 0x3FFF   (0 - 16383)       RAM16K    read / write
+//   0x4000 - 0x5FFF   (16384 - 24575)   Screen    read / write (memory-mapped display)
+//   0x6000            (24576)           Keyboard  read only (key code, 0 = no key)
+//
+// Decoding uses two address bits:
+//   address[14] = 0            -> RAM16K
+//   address[14] = 1, [13] = 0  -> Screen
+//   address[14] = 1, [13] = 1  -> Keyboard
+
+CHIP Memory {
+    IN  in[16],          // value to write
+        load,            // 1 = write in[] to the addressed location
+        address[15];     // location to read or write
+
+    OUT out[16];         // value at the addressed location
+
+    PARTS:
+    // ---------- Write enables ----------
+    // Route the load signal to RAM16K or to the I/O region.
+    DMux(in=load, sel=address[14], a=loadRAM, b=loadIO);
+
+    // Within the I/O region, only the Screen is writable.
+    // Writing to the Keyboard is ignored, so loadIO is gated by address[13] = 0.
+    Not(in=address[13], out=notAddr13);
+    And(a=loadIO, b=notAddr13, out=loadScreen);
+
+    // ---------- Storage and devices ----------
+    // RAM16K uses the low 14 address bits (0..16383).
+    RAM16K(in=in, load=loadRAM, address=address[0..13], out=ramOut);
+
+    // Screen uses the low 13 address bits (8192 words).
+    Screen(in=in, load=loadScreen, address=address[0..12], out=screenOut);
+
+    // Keyboard has one fixed address (0x6000) and no write path.
+    Keyboard(out=kbdOut);
+
+    // ---------- Read path ----------
+    // First pick Screen or Keyboard using address[13].
+    // Then pick RAM or that I/O result using address[14].
+    Mux16(a=screenOut, b=kbdOut, sel=address[13], out=ioOut);
+    Mux16(a=ramOut, b=ioOut, sel=address[14], out=out);
+}

@@ -1,0 +1,25 @@
+// Computer.hdl - the complete Hack computer
+//
+// ROM32K   holds the program (the .hack file loaded into the ROM)
+// CPU      fetches, decodes and executes instructions
+// Memory   holds RAM16K, the Screen and the Keyboard
+//
+// Data flow each cycle:
+//   pc -> ROM32K -> instruction -> CPU
+//   CPU -> addressM -> Memory -> inM -> CPU
+//   CPU -> outM, writeM -> Memory
+
+CHIP Computer {
+    IN reset;            // 1 = restart the program
+
+    PARTS:
+    // Fetch: read the instruction at the program counter.
+    ROM32K(address=pc, out=instruction);
+
+    // Execute: decode and run the instruction.
+    CPU(inM=memOut, instruction=instruction, reset=reset,
+        outM=outM, writeM=writeM, addressM=addressM, pc=pc);
+
+    // Data memory: RAM, Screen and Keyboard.
+    Memory(in=outM, load=writeM, address=addressM, out=memOut);
+}

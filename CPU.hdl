@@ -1,0 +1,70 @@
+// CPU.hdl - Hack CPU
+// Executes one instruction per clock tick.
+//
+// Instruction formats (16 bits, bit 15 is the most significant):
+//   A-instruction:  0 v v v v v v v v v v v v v v v     load value v into A
+//   C-instruction:  1 1 1 a c1 c2 c3 c4 c5 c6 d1 d2 d3 j1 j2 j3
+//     a        = bit 12 : ALU y-input is M (1) or A (0)
+//     c1..c6   = bits 11..6 : ALU control (zx, nx, zy, ny, f, no)
+//     d1..d3   = bits 5..3  : destination (d1 = A, d2 = D, d3 = M)
+//     j1..j3   = bits 2..0  : jump conditions (j1 = JLT, j2 = JEQ, j3 = JGT)
+
+CHIP CPU {
+    IN  inM[16],         // M = RAM[A], value read from data memory
+        instruction[16], // instruction to execute
+        reset;           // 1 = restart the program from address 0
+
+    OUT outM[16],        // value to write to M
+        writeM,          // 1 = write outM into M
+        addressM[15],    // address of M (equals the A register)
+        pc[15];          // address of the next instruction
+
+    PARTS:
+    // ---------- Instruction decoding ----------
+    Not(in=instruction[15], out=isAInst);   // bit 15 = 0 -> A-instruction
+    Not(in=isAInst, out=isCInst);           // bit 15 = 1 -> C-instruction
+
+    // ---------- A register ----------
+    // An A-instruction loads its constant. A C-instruction loads the ALU
+    // output when its d1 bit (bit 5) is set.
+    Mux16(a=aluOut, b=instruction, sel=isAInst, out=aRegIn);
+    And(a=isCInst, b=instruction[5], out=loadAFromAlu);
+    Or(a=isAInst, b=loadAFromAlu, out=loadA);
+    ARegister(in=aRegIn, load=loadA, out=aOut, out[0..14]=addressM);
+
+    // ---------- D register ----------
+    // Only a C-instruction with its d2 bit (bit 4) set loads D.
+    And(a=isCInst, b=instruction[4], out=loadD);
+    DRegister(in=aluOut, load=loadD, out=dOut);
+
+    // ---------- ALU ----------
+    // The second ALU operand is A (a = 0) or M = inM (a = 1).
+    Mux16(a=aOut, b=inM, sel=instruction[12], out=aluY);
+
+    ALU(x=dOut, y=aluY,
+        zx=instruction[11], nx=instruction[10],
+        zy=instruction[9],  ny=instruction[8],
+        f=instruction[7],   no=instruction[6],
+        out=aluOut, out=outM, zr=zr, ng=ng);
+
+    // ---------- Write to memory ----------
+    // A C-instruction with its d3 bit (bit 3) set writes outM to M.
+    And(a=isCInst, b=instruction[3], out=writeM);
+
+    // ---------- Jump logic ----------
+    // zr = (ALU output == 0), ng = (ALU output < 0),
+    // pos = (ALU output > 0) = not (zr or ng).
+    Or(a=zr, b=ng, out=zrOrNg);
+    Not(in=zrOrNg, out=pos);
+
+    And(a=instruction[2], b=ng,  out=jumpIfLT);  // j1: jump when output < 0
+    And(a=instruction[1], b=zr,  out=jumpIfEQ);  // j2: jump when output = 0
+    And(a=instruction[0], b=pos, out=jumpIfGT);  // j3: jump when output > 0
+    Or(a=jumpIfLT, b=jumpIfEQ, out=jumpIfLTorEQ);
+    Or(a=jumpIfLTorEQ, b=jumpIfGT, out=jumpCond); // any enabled condition holds
+    And(a=isCInst, b=jumpCond, out=loadPC);       // only C-instructions can jump
+
+    // ---------- Program counter ----------
+    // Normally increment. A jump loads the A register. reset returns to 0.
+    PC(in=aOut, load=loadPC, inc=true, reset=reset, out[0..14]=pc);
+}

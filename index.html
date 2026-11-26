@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Make the Computer Draw a Box · Soubhagya Saxena · 2501730039</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top">
+  <a class="logo" href="#home">Hack Computer Lab</a>
+  <nav aria-label="Sections">
+    <a href="#home">Home</a><a href="#part-a">Part A</a><a href="#part-b">Part B</a><a href="#part-c">Part C</a><a href="#submission">Submission</a>
+  </nav>
+  <a class="btn" href="#part-c">Box Emulator</a>
+</header>
+<main>
+
+<section id="home" class="sec">
+  <div class="card">
+    <span class="pill">Nand to Tetris – I · ETCNTC301</span>
+    <h1>Make the Computer Draw a Box</h1>
+    <p><strong>Soubhagya Saxena</strong> · Roll No. 2501730039 · <strong>K = 39</strong></p>
+    <p>A Hack computer built in HDL, a two-pass assembler, and a box program that paints only while a key is held.</p>
+  </div>
+  <h2>The Three Pillars of the Hack Machine</h2>
+  <div class="grid3">
+    <article class="card"><span class="pill">2.5 marks</span><h3>Hack Computer HDL</h3><p>CPU, Memory and Computer chips.</p><a href="#part-a">Part A →</a></article>
+    <article class="card"><span class="pill">3 marks</span><h3>Python Assembler</h3><p>Two-pass assembler, mirrored in JavaScript.</p><a href="#part-b">Part B →</a></article>
+    <article class="card"><span class="pill">2.5 marks</span><h3>Box Program &amp; Emulator</h3><p>Box.asm running on a Hack CPU emulator.</p><a href="#part-c">Part C →</a></article>
+  </div>
+  <div class="card">
+    <h3>My K parameters</h3>
+    <table>
+      <tr><th>K</th><td>39</td><th>Start row</th><td>39</td></tr>
+      <tr><th>Start address</th><td>17632 (0x44E0)</td><th>Size</th><td>64 px × 20 rows (4 words per row)</td></tr>
+      <tr><th>Rows</th><td>39–58</td><th>K mod 3</th><td>0 (extra assembler feature to confirm)</td></tr>
+    </table>
+  </div>
+</section>
+
+<section id="part-a" class="sec">
+  <h2>Part A · Hardware Description Language</h2>
+  <div class="card">
+    <div class="tabs" role="tablist">
+      <button role="tab" data-hdl="CPU.hdl" aria-selected="true">CPU.hdl</button>
+      <button role="tab" data-hdl="Memory.hdl" aria-selected="false">Memory.hdl</button>
+      <button role="tab" data-hdl="Computer.hdl" aria-selected="false">Computer.hdl</button>
+    </div>
+    <div class="toolbar"><button id="copy-hdl" class="alt">Copy HDL</button><button id="dl-hdl">Download</button><span id="hdl-status" class="status" aria-live="polite"></span></div>
+    <div id="hdl-code" class="code"></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h3>Hardware logic highlights</h3>
+      <ul>
+        <li>Bit 15 selects an A-instruction (0) or a C-instruction (1).</li>
+        <li>Bit 12 selects A or M as the ALU's second input.</li>
+        <li>Bits 11–6 drive the ALU: zx, nx, zy, ny, f, no.</li>
+        <li>Bits 5–3 choose the destinations A, D and M.</li>
+        <li>Bits 2–0 choose the jump: (j1 AND ng) OR (j2 AND zr) OR (j3 AND positive), only when bit 15 is set.</li>
+        <li>Address bits 14 and 13 select RAM16K, the Screen, or the Keyboard at 24576.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Memory map</h3>
+      <div class="memmap"><div class="r" style="flex:16384">RAM 0–16383</div><div class="s" style="flex:8192">Screen 16384–24575</div><div class="k">KBD 24576</div></div>
+      <h3>Verification suite</h3>
+      <ul class="tests" id="tests"></ul>
+    </div>
+  </div>
+</section>
+
+<section id="part-b" class="sec">
+  <h2>Part B · Two-Pass Assembler Studio</h2>
+  <div class="grid2">
+    <div class="card">
+      <div class="toolbar">
+        <label>Source <select id="preset"><option value="box">Box.asm (your file)</option><option value="add">Add.asm (sample)</option></select></label>
+        <button id="asm-btn">Assemble</button>
+      </div>
+      <textarea id="src" spellcheck="false" aria-label="Assembly source"></textarea>
+    </div>
+    <div class="card">
+      <div class="tabs">
+        <button class="on" data-pane="hack">Hack machine code</button>
+        <button data-pane="sym">Symbol table</button>
+        <button data-pane="py">Python script</button>
+      </div>
+      <pre id="pane-hack" class="code"></pre>
+      <pre id="pane-sym" class="code" hidden></pre>
+      <pre id="pane-py" class="code" hidden></pre>
+      <p id="status" class="status" aria-live="polite"></p>
+      <span id="badge" class="badge" hidden>Matches Box.hack</span>
+    </div>
+  </div>
+</section>
+
+<section id="part-c" class="sec">
+  <h2>Part C · Box Program &amp; CPU Emulator</h2>
+  <div class="grid2">
+    <div class="card">
+      <canvas id="screen" width="512" height="256" tabindex="0" role="img" aria-label="Hack screen, 512 by 256 pixels"></canvas>
+      <div class="controls">
+        <button id="hold" class="alt">Hold key to draw box</button>
+        <button id="pause">Pause CPU</button>
+        <button id="step">Single Step</button>
+        <button id="reset">Reset</button>
+        <label>Speed <input id="speed" type="range" min="1" max="5000" value="500" aria-label="Cycles per frame"></label>
+      </div>
+      <p id="keystate" class="status"></p>
+    </div>
+    <div class="card">
+      <h3>Live CPU registers</h3>
+      <dl class="regs">
+        <dt>PC</dt><dd id="r-pc"></dd>
+        <dt>A</dt><dd id="r-a"></dd>
+        <dt>D</dt><dd id="r-d"></dd>
+        <dt>RAM[24576]</dt><dd id="r-kbd"></dd>
+        <dt>Cycles</dt><dd id="r-cyc"></dd>
+      </dl>
+      <h3>Screen memory address monitor</h3>
+      <table>
+        <tr><td>RAM[17632] (row 39, word 0)</td><td id="m1"></td></tr>
+        <tr><td>RAM[18240] (row 58, word 0)</td><td id="m2"></td></tr>
+        <tr><td><label>Address <input id="mon-addr" type="number" min="0" max="32767" value="17632"></label></td><td id="m3"></td></tr>
+      </table>
+      <h3>How the keyboard polling works</h3>
+      <p>The program reads RAM[24576]. If a key is down it sets the colour to -1 (black), otherwise to 0 (white). It then repaints 4 words in each of 20 rows, starting at 17632 with a stride of 32.</p>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Box.asm, annotated: the current instruction is highlighted</h3>
+    <div id="asm" class="code" style="max-height:360px"></div>
+  </div>
+</section>
+
+<section id="submission" class="sec">
+  <h2>Submission</h2>
+  <div class="grid2">
+    <div class="card">
+      <h3>K calculator</h3>
+      <label>Roll number <input id="roll" value="2501730039" inputmode="numeric"></label>
+      <dl id="kcalc" class="regs" style="margin-top:.6rem"></dl>
+    </div>
+    <div class="card">
+      <h3>Move the box to row N</h3>
+      <label>Row N <input id="row" type="number" min="0" max="236" value="39"></label>
+      <pre id="rowout" class="code" style="margin-top:.6rem"></pre>
+    </div>
+  </div>
+  <div class="card"><h3>Files in capstone/</h3><ul id="files"></ul></div>
+</section>
+
+</main>
+<footer>
+  <strong>Hack Computer Lab</strong> · Nand to Tetris – I (ETCNTC301) · School of Engineering &amp; Technology, K.R. Mangalam University<br>
+  Soubhagya Saxena · Roll No. 2501730039
+  <table>
+    <tr><th>Start row</th><td>39</td><th>Box</th><td>64 px × 20 rows</td></tr>
+    <tr><th>Start address</th><td>17632</td><th>Bottom-right word</th><td>18243</td></tr>
+  </table>
+</footer>
+<script src="data.js"></script>
+<script src="emulator.js"></script>
+<script src="assembler.js"></script>
+<script src="ui.js"></script>
+</body>
+</html>
